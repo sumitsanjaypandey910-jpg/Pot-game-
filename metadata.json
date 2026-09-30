@@ -1,0 +1,6 @@
+{
+  "name": "Ceramica - Zen Pottery Studio",
+  "description": "Interactive pottery maker game featuring real-time 3D wheel rotation, tactile finger clay sculpting, glazing, firing, and artisan ceramic showcase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
