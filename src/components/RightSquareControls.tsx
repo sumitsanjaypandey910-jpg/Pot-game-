@@ -10,9 +10,13 @@ import {
   Home, 
   Check, 
   Hand,
-  Trophy
+  Trophy,
+  Sun,
+  Sunset,
+  Moon
 } from 'lucide-react';
 import { potteryAudio } from '../audio/potteryAudio';
+import { LightingMode } from '../types/pottery';
 
 interface RightSquareControlsProps {
   mode: 'shape' | 'colours' | 'ready';
@@ -22,6 +26,8 @@ interface RightSquareControlsProps {
   onOpenGallery: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
+  lightingMode: LightingMode;
+  onToggleLighting: () => void;
 }
 
 export const RightSquareControls: React.FC<RightSquareControlsProps> = ({
@@ -32,6 +38,8 @@ export const RightSquareControls: React.FC<RightSquareControlsProps> = ({
   onOpenGallery,
   isMuted,
   onToggleMute,
+  lightingMode = 'morning',
+  onToggleLighting,
 }) => {
   return (
     <aside aria-label="Pottery controls" className="absolute top-4 right-4 z-40 flex flex-col items-center gap-3 select-none pointer-events-auto">
@@ -118,6 +126,37 @@ export const RightSquareControls: React.FC<RightSquareControlsProps> = ({
         </div>
         <span className="text-[11px] font-medium text-white/90 drop-shadow-md mt-1">
           menu
+        </span>
+      </button>
+
+      {/* Lighting Mode Toggle (Morning Light, Golden Hour, Moonlit Studio) */}
+      <button
+        onClick={() => {
+          potteryAudio.playClick();
+          onToggleLighting();
+        }}
+        className="flex flex-col items-center justify-center group cursor-pointer"
+        title={`Environment: ${
+          lightingMode === 'morning'
+            ? 'Morning Light'
+            : lightingMode === 'golden'
+            ? 'Golden Hour'
+            : 'Moonlit Studio'
+        }`}
+      >
+        <div className={`w-12 h-12 rounded-xl backdrop-blur-md border shadow-lg flex items-center justify-center text-white transition-all group-active:scale-95 ${
+          lightingMode === 'morning'
+            ? 'bg-black/65 hover:bg-black/85 border-amber-200/40 hover:border-amber-200/80 shadow-amber-900/20'
+            : lightingMode === 'golden'
+            ? 'bg-amber-950/70 hover:bg-amber-900/80 border-amber-400/50 hover:border-amber-400/90 shadow-amber-500/20'
+            : 'bg-indigo-950/70 hover:bg-indigo-900/80 border-sky-400/50 hover:border-sky-400/90 shadow-sky-500/20'
+        }`}>
+          {lightingMode === 'morning' && <Sun className="w-5 h-5 text-amber-200" />}
+          {lightingMode === 'golden' && <Sunset className="w-5 h-5 text-amber-400" />}
+          {lightingMode === 'moonlit' && <Moon className="w-5 h-5 text-sky-300" />}
+        </div>
+        <span className="text-[10px] font-medium text-white/90 drop-shadow-md mt-1 truncate max-w-[56px] text-center">
+          {lightingMode === 'morning' ? 'morning' : lightingMode === 'golden' ? 'golden' : 'moonlit'}
         </span>
       </button>
 

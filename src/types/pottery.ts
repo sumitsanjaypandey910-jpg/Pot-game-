@@ -2,6 +2,8 @@ export type AppStep = 'wheel' | 'glaze' | 'kiln' | 'gallery' | 'challenges';
 
 export type InteractionMode = 'shape' | 'colours' | 'ready' | 'gallery';
 
+export type LightingMode = 'morning' | 'golden' | 'moonlit';
+
 export type SculptTool = 'finger' | 'sponge' | 'rib' | 'fluting' | 'pull_up' | 'flatten';
 
 export interface PotteryProfile {

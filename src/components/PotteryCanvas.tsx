@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ClayType, PotteryProfile, SculptTool } from '../types/pottery';
+import { ClayType, PotteryProfile, SculptTool, LightingMode } from '../types/pottery';
 import { potteryAudio } from '../audio/potteryAudio';
 
 interface PotteryCanvasProps {
@@ -17,6 +17,7 @@ interface PotteryCanvasProps {
   isFired: boolean;
   isKilnFiring?: boolean;
   kilnTemp?: number;
+  lightingMode?: LightingMode;
   onFingerTouch?: (isTouching: boolean, heightPercent: number, radius: number) => void;
 }
 
@@ -43,6 +44,57 @@ function blendHexColor(baseHex: string, targetHex: string, factor: number): stri
   return rgbToHex(r, g, b);
 }
 
+interface LightingPreset {
+  ambientColor: number;
+  ambientIntensity: number;
+  keyColor: number;
+  keyIntensity: number;
+  keyPosition: [number, number, number];
+  fillColor: number;
+  fillIntensity: number;
+  cavityColor: number;
+  cavityIntensity: number;
+}
+
+const LIGHTING_PRESETS: Record<LightingMode, LightingPreset> = {
+  morning: {
+    // Morning Light: Crisp natural daylight (~5600K-6000K), soft morning clarity and green foliage bounce
+    ambientColor: 0xf4f9fc,
+    ambientIntensity: 1.45,
+    keyColor: 0xfffaed,
+    keyIntensity: 2.5,
+    keyPosition: [2.5, 5.0, 3.5],
+    fillColor: 0xd6f5e3,
+    fillIntensity: 0.9,
+    cavityColor: 0xfff6ea,
+    cavityIntensity: 1.15,
+  },
+  golden: {
+    // Golden Hour: Rich amber, warm sunset glow (~3000K-3500K color temp), luminous warm rim
+    ambientColor: 0xffe2be,
+    ambientIntensity: 1.25,
+    keyColor: 0xff9d3b,
+    keyIntensity: 3.2,
+    keyPosition: [3.8, 3.2, 3.2],
+    fillColor: 0xeb8855,
+    fillIntensity: 1.1,
+    cavityColor: 0xffcf94,
+    cavityIntensity: 1.25,
+  },
+  moonlit: {
+    // Moonlit Studio: Deep indigo and cool silver specular highlights (~7500K-8000K cool color temp)
+    ambientColor: 0x182442,
+    ambientIntensity: 0.95,
+    keyColor: 0xc4dcff,
+    keyIntensity: 2.4,
+    keyPosition: [1.8, 5.8, 2.8],
+    fillColor: 0x3d5885,
+    fillIntensity: 0.75,
+    cavityColor: 0x82b2f5,
+    cavityIntensity: 0.95,
+  },
+};
+
 export const PotteryCanvas: React.FC<PotteryCanvasProps> = ({
   mode,
   activeColor,
@@ -56,6 +108,7 @@ export const PotteryCanvas: React.FC<PotteryCanvasProps> = ({
   isFired,
   isKilnFiring = false,
   kilnTemp = 20,
+  lightingMode = 'morning',
   onFingerTouch,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,6 +162,12 @@ export const PotteryCanvas: React.FC<PotteryCanvasProps> = ({
   const contactRingRef = useRef<THREE.Mesh | null>(null);
   const particlesRef = useRef<THREE.Points | null>(null);
   const particleVelocitiesRef = useRef<THREE.Vector3[]>([]);
+
+  // Lighting refs for dynamic environment toggling
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const sunKeyLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const softFillLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const topInsideLightRef = useRef<THREE.DirectionalLight | null>(null);
 
   // Textures
   const textureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -333,25 +392,35 @@ export const PotteryCanvas: React.FC<PotteryCanvasProps> = ({
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
 
-    // Atmospheric Natural Sunlight
-    const ambientLight = new THREE.AmbientLight(0xfffdf7, 1.4);
+    // Set initial environment lighting according to active lightingMode ('morning', 'golden', 'moonlit')
+    const initialPreset = LIGHTING_PRESETS[lightingMode || 'morning'] || LIGHTING_PRESETS.morning;
+
+    // Atmospheric Ambient Light (controls base exposure and environment color temperature)
+    const ambientLight = new THREE.AmbientLight(initialPreset.ambientColor, initialPreset.ambientIntensity);
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight;
 
-    // Warm sun key light creating soft highlights
-    const sunKeyLight = new THREE.DirectionalLight(0xfffaec, 2.5);
-    sunKeyLight.position.set(2.5, 5.0, 3.5);
+    // Primary Sun / Moon Directional Key Light with cast shadow
+    const sunKeyLight = new THREE.DirectionalLight(initialPreset.keyColor, initialPreset.keyIntensity);
+    sunKeyLight.position.set(...initialPreset.keyPosition);
     sunKeyLight.castShadow = true;
+    sunKeyLight.shadow.mapSize.width = 1024;
+    sunKeyLight.shadow.mapSize.height = 1024;
+    sunKeyLight.shadow.bias = -0.001;
     scene.add(sunKeyLight);
+    sunKeyLightRef.current = sunKeyLight;
 
-    // Soft skylight fill
-    const softFillLight = new THREE.DirectionalLight(0xd4f4dd, 0.9);
+    // Soft skylight / foliage fill
+    const softFillLight = new THREE.DirectionalLight(initialPreset.fillColor, initialPreset.fillIntensity);
     softFillLight.position.set(-3.0, 3.5, -2.0);
     scene.add(softFillLight);
+    softFillLightRef.current = softFillLight;
 
     // Downward angled opening light to softly illuminate inside the vase cavity
-    const topInsideLight = new THREE.DirectionalLight(0xfff6ea, 1.1);
+    const topInsideLight = new THREE.DirectionalLight(initialPreset.cavityColor, initialPreset.cavityIntensity);
     topInsideLight.position.set(0, 6.0, 2.0);
     scene.add(topInsideLight);
+    topInsideLightRef.current = topInsideLight;
 
     // 3D Potter's Wheel / Turntable Platform
     const wheelGroup = new THREE.Group();
@@ -549,6 +618,29 @@ export const PotteryCanvas: React.FC<PotteryCanvasProps> = ({
       potMaterialRef.current.needsUpdate = true;
     }
   }, [isFired, isKilnFiring, kilnTemp]);
+
+  // Dynamically update ambient lighting intensity, color temperature, and key lights when lightingMode changes
+  useEffect(() => {
+    const preset = LIGHTING_PRESETS[lightingMode || 'morning'] || LIGHTING_PRESETS.morning;
+
+    if (ambientLightRef.current) {
+      ambientLightRef.current.color.setHex(preset.ambientColor);
+      ambientLightRef.current.intensity = preset.ambientIntensity;
+    }
+    if (sunKeyLightRef.current) {
+      sunKeyLightRef.current.color.setHex(preset.keyColor);
+      sunKeyLightRef.current.intensity = preset.keyIntensity;
+      sunKeyLightRef.current.position.set(...preset.keyPosition);
+    }
+    if (softFillLightRef.current) {
+      softFillLightRef.current.color.setHex(preset.fillColor);
+      softFillLightRef.current.intensity = preset.fillIntensity;
+    }
+    if (topInsideLightRef.current) {
+      topInsideLightRef.current.color.setHex(preset.cavityColor);
+      topInsideLightRef.current.intensity = preset.cavityIntensity;
+    }
+  }, [lightingMode]);
 
   useEffect(() => {
     potteryAudio.setWheelSpeed(wheelRpm);

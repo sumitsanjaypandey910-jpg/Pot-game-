@@ -3,7 +3,8 @@ import {
   InteractionMode, 
   ClayType, 
   PotteryProfile, 
-  GalleryItem 
+  GalleryItem,
+  LightingMode
 } from './types/pottery';
 import { 
   CLAY_TYPES, 
@@ -78,6 +79,16 @@ export default function App() {
   const [isGalleryOpen, setIsGalleryOpen] = useState<boolean>(false);
   const [kilnTemp, setKilnTemp] = useState<number>(25);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [lightingMode, setLightingMode] = useState<LightingMode>('morning');
+
+  // Toggle between Morning Light, Golden Hour, and Moonlit Studio
+  const handleToggleLighting = useCallback(() => {
+    setLightingMode((prev) => {
+      if (prev === 'morning') return 'golden';
+      if (prev === 'golden') return 'moonlit';
+      return 'morning';
+    });
+  }, []);
 
   // Undo / Redo shape profile history stack
   const [history, setHistory] = useState<PotteryProfile[]>([createDefaultProfile()]);
@@ -180,8 +191,28 @@ export default function App() {
     <div className="fixed inset-0 w-full h-full overflow-hidden select-none bg-stone-950 font-sans">
       {/* 1. Lush Green Outdoor Bokeh Background with deep foliage, circular bokeh, and cinematic blur */}
       <div 
-        className="absolute inset-0 w-full h-full bg-cover bg-center pointer-events-none z-0"
+        className="absolute inset-0 w-full h-full bg-cover bg-center pointer-events-none z-0 transition-all duration-700 ease-out"
         style={{ backgroundImage: `url('/src/assets/images/cinematic_green_bokeh_1790462207717.jpg')` }}
+      />
+      {/* Dynamic Lighting Overlay to tint the bokeh backdrop according to color temperature and time of day */}
+      <div 
+        className={`absolute inset-0 pointer-events-none z-0 transition-all duration-700 ease-out ${
+          lightingMode === 'morning'
+            ? 'bg-transparent'
+            : lightingMode === 'golden'
+            ? 'bg-gradient-to-tr from-amber-950/40 via-amber-900/25 to-yellow-600/20 mix-blend-color-burn'
+            : 'bg-gradient-to-b from-indigo-950/60 via-slate-950/50 to-blue-950/65 mix-blend-multiply'
+        }`}
+      />
+      {/* Ambient lighting highlight / glow overlay */}
+      <div 
+        className={`absolute inset-0 pointer-events-none z-0 transition-opacity duration-700 ease-out ${
+          lightingMode === 'morning'
+            ? 'opacity-20 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,240,0.4),_transparent_70%)]'
+            : lightingMode === 'golden'
+            ? 'opacity-60 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,170,40,0.45),_transparent_65%)]'
+            : 'opacity-50 bg-[radial-gradient(ellipse_at_top,_rgba(120,170,255,0.35),_transparent_60%)]'
+        }`}
       />
       {/* Subtle vignette */}
       <div className="absolute inset-0 bg-radial from-transparent via-transparent to-black/35 pointer-events-none z-0" />
@@ -201,6 +232,7 @@ export default function App() {
           isFired={isFired}
           isKilnFiring={isKilnModalOpen}
           kilnTemp={kilnTemp}
+          lightingMode={lightingMode}
           onFingerTouch={(touching) => setIsTouchingPot(touching)}
         />
       </div>
@@ -235,6 +267,8 @@ export default function App() {
         onOpenGallery={() => setIsGalleryOpen(true)}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
+        lightingMode={lightingMode}
+        onToggleLighting={handleToggleLighting}
       />
 
       {/* 6. Subtle On-Screen Guidance Hint */}
